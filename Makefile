@@ -17,29 +17,17 @@ TARGET = infragram.js
 
 SRCS = infragram.coffee \
        infragram-gl.coffee \
+       camera.coffee \
        dispatch.coffee
-
-# Detect operating system.
-UNAME = $(shell uname -s)
-ifeq ($(strip $(UNAME)),)
-	UNAME = NT
-endif
-
-# Select remove command based on current OS.
-RM_CMD = rm
-ifneq (,$(findstring NT,$(UNAME)))
-	RM_CMD = cmd /C del
-endif
-
 
 all : $(TARGET)
 
 $(TARGET) : $(SRCS)
 	coffee --compile --bare --join $@ $^
-	bash update_hash.sh
+	bash update_hash.sh $@ index.html
 
 commit : $(TARGET)
 	git commit $^ -m "Update javascript"
 
 clean : $(TARGET)
-	$(RM_CMD) $^
+	rm $^
