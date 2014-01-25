@@ -37,11 +37,23 @@ exports.show = function(req, res){
 };
 
 exports.delete = function (req, res) {
-  if (req.params.pwd == "easytohack") { // very temporary solution
-    Image.remove({ _id: req.params.id }, function (err, image) {
+  if (req.query.pwd == "easytohack") { // very temporary solution
+    Image.findOne({_id: req.params.id}, 'filename', function (err, image) {
       if (err) return handleError(err);
-      res.redirect('/');
-    })
+      var upload = require('../upload');
+      var fs = require('fs');
+      var obj = image.toObject();
+      fs.unlink(upload.UPLOAD_PREFIX + obj.filename, function () {});
+      fs.unlink(upload.UPLOAD_PREFIX + obj.filename + upload.THUMBNAIL_SUFIX, function () {});
+
+      Image.remove({ _id: req.params.id }, function (err, image) {
+        if (err) return handleError(err);
+        res.redirect('/');
+      });
+    });
+  }
+  else {
+    res.redirect('/');
   }
 };
 
