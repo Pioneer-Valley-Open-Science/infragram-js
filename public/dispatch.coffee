@@ -20,7 +20,7 @@ log = [] # a record of previous commands run
 
 getURLParameter = (name) ->
     result = decodeURI(
-        (RegExp(name + "=" + "(.+?)(&|$)").exec(location.search) || [null, null])[1]
+        (RegExp(name + "=" + "(.+?)(&|$|/)").exec(location.search) || [null, null])[1]
     )
     return if result == "null" then null else result
 
@@ -71,8 +71,10 @@ $(document).ready(() ->
         src = getURLParameter("src")
         if src
             $("#save-modal-btn").show()
-            FileUpload.fromUrl(src, (img) ->
-                updateImage(img)
+            img = new Image()
+            img.onload = () ->
+                FileUpload.setFilename(src)
+                updateImage(this)
                 infraMode = getURLParameter("mode")
                 if infraMode
                     if infraMode.substring(0, 5) == "infra"
@@ -86,7 +88,7 @@ $(document).ready(() ->
                 if color
                     $("button#color").button("toggle");
                     $("button#color").click()
-            )
+            img.src = "../upload/" + src
 
         return true
     )
@@ -153,14 +155,13 @@ $(document).ready(() ->
                 $("#form-log").val(JSON.stringify(log))
                 $("#save-form").submit()
             )
-        $("#save").prop("disabled", false)
+        $("#save").prop("disabled", true)
         $("#save").html("Saving...")
         if FileUpload.getFilename() == ""
             img = getCurrentImage()
             FileUpload.fromBase64("camera", img, sendThumbnail)
         else if FileUpload.isLoadedFromFile() == false
-            url = window.location.protocol + "//" + window.location.host + "/upload/" + FileUpload.getFilename()
-            FileUpload.fromUrl(url, sendThumbnail)
+            FileUpload.duplicate(sendThumbnail)
         else
             sendThumbnail()
         return true

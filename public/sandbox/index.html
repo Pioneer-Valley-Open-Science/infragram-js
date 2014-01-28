@@ -20,7 +20,7 @@
     <script src="/bootstrap/js/bootstrap-slider.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/webgl-utils.js"></script>
-    <script src="/infragram.js?hash=0fc4be18daf2426a251fb114c4afed6728cc58a9"></script>
+    <script src="/infragram.js?hash=421adfc577e1e49a0ca738542fc449803ee9dea7"></script>
 
     <script type="x-shader/x-vertex" id="shader-vs"></script>
     <script type="x-shader/x-fragment" id="shader-fs-template"></script>
@@ -35,9 +35,9 @@
         <div class="modal-body">
           <h3>Save your image</h3>
           <form id="save-form" class="form" action="/create" method="post">
-            <input type="text" name="title" placeholder="Title" /><br />
-            <input type="text" name="author" placeholder="Your name" /><br />
-            <textarea name="desc" placeholder="A description of your work"></textarea>
+            <input type="text" name="title" maxlength="25" placeholder="Title" /><br />
+            <input type="text" name="author" maxlength="25" placeholder="Your name" /><br />
+            <textarea name="desc" maxlength="50" placeholder="A description of your work"></textarea>
             <input id="form-filename" type="hidden" name="filename" />
             <input id="form-log" type="hidden" name="log" />
           </form>

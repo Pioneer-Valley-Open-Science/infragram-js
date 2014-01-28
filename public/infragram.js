@@ -739,27 +739,30 @@ FileUpload = {
   getFilename: function() {
     return FileUpload.serverFilename;
   },
-  uploadThumbnail: function(src, onLoadImage) {
+  setFilename: function(name) {
+    return FileUpload.serverFilename = name;
+  },
+  uploadThumbnail: function(src, callback) {
     var img;
     img = new Image();
     img.onload = function() {
-      var canvas, ctx, dataUrl, onLoad;
+      var canvas, ctx, dataUrl;
       canvas = document.createElement("canvas");
       ctx = canvas.getContext("2d");
       canvas.width = 260;
       canvas.height = 195;
       ctx.drawImage(this, 0, 0, this.width, this.height, 0, 0, canvas.width, canvas.height);
-      onLoad = onLoadImage.toString();
+      callback = callback.toString();
       dataUrl = canvas.toDataURL("image/jpeg");
       return FileUpload.socket.emit("thumbnail_start", {
         "name": FileUpload.serverFilename,
         "data": dataUrl,
-        "on_load": onLoad
+        "callback": callback
       });
     };
     return img.src = src;
   },
-  fromFile: function(files, onLoadImage) {
+  fromFile: function(files, callback) {
     var reader;
     if (files && files[0]) {
       $("#file-sel").prop("disabled", true);
@@ -783,30 +786,26 @@ FileUpload = {
         var img;
         img = new Image();
         img.onload = function() {
-          return onLoadImage(this);
+          return callback(this);
         };
         return img.src = event.target.result;
       };
       return reader.readAsDataURL(files[0]);
     }
   },
-  fromUrl: function(url, onLoadImage) {
-    var name, onLoad;
-    name = url.substring(url.lastIndexOf("/") + 1);
-    onLoad = onLoadImage.toString();
-    return FileUpload.socket.emit("url_start", {
-      "name": name,
-      "url": url,
-      "on_load": onLoad
+  duplicate: function(callback) {
+    callback = callback.toString();
+    return FileUpload.socket.emit("duplicate_start", {
+      "name": FileUpload.serverFilename,
+      "callback": callback
     });
   },
-  fromBase64: function(name, data, onLoadImage) {
-    var onLoad;
-    onLoad = onLoadImage.toString();
+  fromBase64: function(name, data, callback) {
+    callback = callback.toString();
     return FileUpload.socket.emit("base64_start", {
       "name": name,
       "data": data,
-      "on_load": onLoad
+      "callback": callback
     });
   },
   initialize: function() {
@@ -839,24 +838,23 @@ FileUpload = {
       $("#file-sel").prop("disabled", false);
       return $("#save-modal-btn").prop("disabled", false);
     });
-    FileUpload.socket.on("url_done", function(data) {
-      var img;
-      FileUpload.serverFilename = data["name"];
-      img = new Image();
-      img.onload = function() {
-        eval("var fn=" + data["on_load"]);
-        return fn(this);
-      };
-      return img.src = "../upload/" + FileUpload.getFilename();
-    });
     FileUpload.socket.on("base64_done", function(data) {
       FileUpload.serverFilename = data["name"];
-      eval("var fn=" + data["on_load"]);
-      return fn();
+      eval("var callback=" + data["callback"]);
+      return callback();
+    });
+    FileUpload.socket.on("duplicate_done", function(data) {
+      if (data["error"]) {
+        return alert(data["error"]);
+      } else {
+        FileUpload.serverFilename = data["name"];
+        eval("var callback=" + data["callback"]);
+        return callback();
+      }
     });
     FileUpload.socket.on("thumbnail_done", function(data) {
-      eval("var fn=" + data["on_load"]);
-      return fn();
+      eval("var callback=" + data["callback"]);
+      return callback();
     });
   }
 };
@@ -867,7 +865,7 @@ log = [];
 
 getURLParameter = function(name) {
   var result;
-  result = decodeURI((RegExp(name + "=" + "(.+?)(&|$)").exec(location.search) || [null, null])[1]);
+  result = decodeURI((RegExp(name + "=" + "(.+?)(&|$|/)").exec(location.search) || [null, null])[1]);
   if (result === "null") {
     return null;
   } else {
@@ -912,7 +910,7 @@ getCurrentImage = function() {
 $(document).ready(function() {
   FileUpload.initialize();
   $("#image-container").ready(function() {
-    var enablewebgl, idNameMap, src;
+    var enablewebgl, idNameMap, img, src;
     enablewebgl = getURLParameter("enablewebgl") === "true" ? true : false;
     webGlSupported = enablewebgl && glInitInfragram();
     if (webGlSupported) {
@@ -931,9 +929,11 @@ $(document).ready(function() {
     src = getURLParameter("src");
     if (src) {
       $("#save-modal-btn").show();
-      FileUpload.fromUrl(src, function(img) {
+      img = new Image();
+      img.onload = function() {
         var color, infraMode;
-        updateImage(img);
+        FileUpload.setFilename(src);
+        updateImage(this);
         infraMode = getURLParameter("mode");
         if (infraMode) {
           if (infraMode.substring(0, 5) === "infra") {
@@ -949,7 +949,8 @@ $(document).ready(function() {
           $("button#color").button("toggle");
           return $("button#color").click();
         }
-      });
+      };
+      img.src = "../upload/" + src;
     }
     return true;
   });
@@ -1002,7 +1003,7 @@ $(document).ready(function() {
     return true;
   });
   $("#save").click(function() {
-    var img, sendThumbnail, url;
+    var img, sendThumbnail;
     sendThumbnail = function() {
       var img;
       img = getCurrentImage();
@@ -1012,14 +1013,13 @@ $(document).ready(function() {
         return $("#save-form").submit();
       });
     };
-    $("#save").prop("disabled", false);
+    $("#save").prop("disabled", true);
     $("#save").html("Saving...");
     if (FileUpload.getFilename() === "") {
       img = getCurrentImage();
       FileUpload.fromBase64("camera", img, sendThumbnail);
     } else if (FileUpload.isLoadedFromFile() === false) {
-      url = window.location.protocol + "//" + window.location.host + "/upload/" + FileUpload.getFilename();
-      FileUpload.fromUrl(url, sendThumbnail);
+      FileUpload.duplicate(sendThumbnail);
     } else {
       sendThumbnail();
     }

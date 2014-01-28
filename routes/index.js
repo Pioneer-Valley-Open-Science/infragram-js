@@ -19,12 +19,29 @@ var mongoose = require('mongoose');
 var Image = mongoose.model('Image');
 
 exports.index = function (req, res) {
-  Image.find('title author created_at filename', function (err, images, count) {
-    res.render('index', {
-      title: 'Infragram: online infrared image analysis',
-      images: images
+  var pageNumber = (req.query.page && (req.query.page > 0)) ? req.query.page : 1;
+  var resultsPerPage = 8;
+  var skipFrom = (pageNumber * resultsPerPage) - resultsPerPage;
+
+  Image
+    .find()
+    .sort('-updated_at')
+    .skip(skipFrom)
+    .limit(resultsPerPage)
+    .exec(function (err, images) {
+      Image.count({}, function(error, count) {
+        var pageCount = Math.ceil(count / resultsPerPage);
+        if (pageCount == 0) {
+          pageCount = 1;
+        }
+        res.render('index', {
+          title: 'Infragram: online infrared image analysis',
+          images: images,
+          pageNumber: pageNumber,
+          pageCount: pageCount
+        });
+      });
     });
-  });
 };
 
 exports.show = function(req, res){
@@ -59,10 +76,10 @@ exports.delete = function (req, res) {
 
 exports.create = function (req, res) {
   new Image({
-    filename: req.body.filename,
-    title: req.body.title,
-    author: req.body.author,
-    desc: req.body.desc,
+    filename: req.body.filename.substring(0, 128),
+    title: req.body.title.substring(0, 25),
+    author: req.body.author.substring(0, 25),
+    desc: req.body.desc.substring(0, 50),
     log: req.body.log,
     updated_at: Date.now(),
   }).save(function (err, todo, count) {
